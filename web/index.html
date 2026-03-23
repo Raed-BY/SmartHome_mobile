@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SmartHome</title>
+  
+  <!-- This tells iPhone to use the full screen including the notch -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- PWA Settings -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#02040A"> <!-- Matches your app background -->
+
+  <style>
+    /* This makes the browser background match your app so it looks blended */
+    html, body {
+      background-color: #02040A !important;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    #flutter_container {
+      background-color: #02040A !important;
+    }
+  </style>
+  <!-- Icon for iPhone Home Screen -->
+  <link rel="apple-touch-icon" href="icons/app_icon.png">
+  
+  <!-- Icon for Browser Tab -->
+  <link rel="icon" type="image/png" href="icons/app_icon.png">
+
+  <!-- Manifest for PWA -->
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
