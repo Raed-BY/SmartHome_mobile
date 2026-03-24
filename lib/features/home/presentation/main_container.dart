@@ -1,106 +1,91 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobile_app/core/config/app_config.dart';
-import 'package:mobile_app/features/home/presentation/control_page.dart';
-import 'package:mobile_app/features/home/presentation/dashboard_page.dart';
-import 'package:mobile_app/features/home/presentation/settings_page.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../../core/config/app_config.dart';
+import 'control_page.dart';
+import 'dashboard_page.dart';
+import 'settings_page.dart';
 
-// Main shell with bottom navigation and live data polling.
 class MainContainer extends StatefulWidget {
   const MainContainer({super.key});
-
   @override
   State<MainContainer> createState() => _MainContainerState();
 }
 
 class _MainContainerState extends State<MainContainer> {
-  // Selected tab index.
   int _index = 0;
-
-  // Shared data model consumed by dashboard/control/settings.
+  bool _isSystemAwake = false; 
   Map<String, dynamic> data = {
-    'tempSalon': 0,
-    'soilMoisture': 0,
-    'gasLevel': 0,
-    'isRaining': false,
-    'motionDetected': false,
-    'manualPump': false,
-    'lights': { // Ajoute ça ici pour éviter les erreurs au démarrage
-    'Living Room': false,
-    'Bedroom': false,
-    'Kitchen': false,
-    'Garage': false,
-  },
-    'systemInfo': {'userName': 'User'},
+    'tempSalon': 0, 'soilMoisture': 0, 'manualPump': false, 'manualCanopy': false,
+    'garageOpen': false, 'proximityEnabled': true,
+    'lights': {'Living Room': false, 'Bedroom': false, 'Kitchen': false, 'Garage': false},
+    'systemInfo': {'userName': 'User', 'familyMembers': 1}
   };
 
-  // Timer for periodic API refresh.
-  Timer? _timer;
+  final stt.SpeechToText _speech = stt.SpeechToText();
 
   @override
   void initState() {
     super.initState();
-    // Refreshes status every 2 seconds.
-    _timer =
-        Timer.periodic(const Duration(seconds: 2), (timer) => _fetchData());
+    Timer.periodic(const Duration(seconds: 2), (t) => _fetchData());
   }
 
-  // Loads latest smart-home status from backend.
+  void _startAssistant() async {
+    bool avail = await _speech.initialize(onStatus: (s) {
+      if (s == 'done' || s == 'notListening') if (_isSystemAwake) _listenLoop();
+    });
+    if (avail) _listenLoop();
+  }
+
+  void _listenLoop() {
+    _speech.listen(onResult: (val) => _processVoice(val.recognizedWords.toLowerCase()));
+    if (mounted) setState(() {});
+  }
+
+  void _processVoice(String cmd) {
+    if (cmd.contains("bedroom") && cmd.contains("on")) _toggle('toggle-light', {'name': 'Bedroom', 'state': true});
+    if (cmd.contains("bedroom") && cmd.contains("off")) _toggle('toggle-light', {'name': 'Bedroom', 'state': false});
+    if (cmd.contains("open") && cmd.contains("garage")) _toggle('toggle-garage', {'state': true});
+    if (cmd.contains("close") && cmd.contains("garage")) _toggle('toggle-garage', {'state': false});
+    if (cmd.contains("water") || cmd.contains("pump")) _toggle('toggle-pump', {'state': cmd.contains("on")});
+    if (cmd.contains("canopy")) _toggle('toggle-canopy', {'state': cmd.contains("on")});
+  }
+
+  Future<void> _toggle(String path, dynamic body) async {
+    try { await http.post(Uri.parse('${AppConfig.baseUrl}/$path'), headers: {'Content-Type': 'application/json'}, body: jsonEncode(body)); } catch (_) {}
+  }
+
   Future<void> _fetchData() async {
     try {
-      final http.Response response =
-          await http.get(Uri.parse('${AppConfig.baseUrl}/status'));
-      // Ignore invalid responses or disposed widget state.
-      if (response.statusCode != 200 || !mounted) {
-        return;
-      }
-      // Updates UI with decoded JSON payload.
-      setState(() => data = jsonDecode(response.body) as Map<String, dynamic>);
+      final res = await http.get(Uri.parse('${AppConfig.baseUrl}/status'));
+      if (res.statusCode == 200 && mounted) setState(() => data = jsonDecode(res.body));
     } catch (_) {}
   }
 
   @override
-  void dispose() {
-    // Stops periodic polling.
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Pages rendered by bottom navigation.
-    final List<Widget> pages = [
-      DashboardPage(data: data),
-      ControlPage(data: data),
-      SettingsPage(data: data),
-    ];
+    if (!_isSystemAwake) {
+      return GestureDetector(
+        onTap: () { setState(() => _isSystemAwake = true); _startAssistant(); },
+        child: Scaffold(body: Center(child: Icon(Icons.bolt_rounded, size: 100, color: Colors.blueAccent.withOpacity(0.3)))),
+      );
+    }
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      body: pages[_index],
+      body: IndexedStack(index: _index, children: [
+        DashboardPage(data: data, isListening: _speech.isListening),
+        ControlPage(data: data, isListening: _speech.isListening),
+        SettingsPage(data: data, isListening: _speech.isListening),
+      ]),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        // Switches between tabs.
-        onTap: (index) => setState(() => _index = index),
-        backgroundColor: const Color(0xFF02040A),
-        selectedItemColor: Colors.blueAccent,
-        unselectedItemColor: Colors.white10,
+        currentIndex: _index, onTap: (i) => setState(() => _index = i),
+        backgroundColor: const Color(0xFF02040A), selectedItemColor: Colors.blueAccent, unselectedItemColor: Colors.white10,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded),
-            label: 'Status',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.lightbulb_outline),
-            label: 'Control',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_rounded),
-            label: 'Settings',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Status'),
+          BottomNavigationBarItem(icon: Icon(Icons.lightbulb_outline), label: 'Control'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings_rounded), label: 'Settings'),
         ],
       ),
     );
