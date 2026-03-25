@@ -21,16 +21,7 @@ class SettingsPage extends StatelessWidget {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(25, MediaQuery.of(context).padding.top + 10, 25, 20),
-              child: Align(
-                alignment: Alignment.topRight,
-                child: Container(
-                  width: 8, height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isListening ? Colors.greenAccent : Colors.white10,
-                  ),
-                ),
-              ),
+              child: Align(alignment: Alignment.topRight, child: Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: isListening ? Colors.greenAccent : Colors.white10))),
             ),
             const Padding(padding: EdgeInsets.symmetric(horizontal: 25), child: Align(alignment: Alignment.centerLeft, child: Text("Settings", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)))),
             const SizedBox(height: 30),

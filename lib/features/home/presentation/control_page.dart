@@ -7,17 +7,39 @@ class ControlPage extends StatefulWidget {
   final Map<String, dynamic> data;
   final bool isListening;
   const ControlPage({super.key, required this.data, required this.isListening});
+
   @override
   State<ControlPage> createState() => _ControlPageState();
 }
 
 class _ControlPageState extends State<ControlPage> {
+  // --- 1. THE ACTION FUNCTION (Now used below) ---
   Future<void> _toggle(String path, dynamic body) async {
-    try { await http.post(Uri.parse('${AppConfig.baseUrl}/$path'), headers: {'Content-Type': 'application/json'}, body: jsonEncode(body)); } catch (_) {}
+    try {
+      await http.post(
+        Uri.parse('${AppConfig.baseUrl}/$path'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+    } catch (e) {
+      print("Error: $e");
+    }
+  }
+
+  // Maps your rooms to your specific filenames in web/icons
+  String _getIconPath(String name) {
+    switch (name) {
+      case 'Living Room': return 'icons/couch.png';
+      case 'Bedroom': return 'icons/bedroom.png';
+      case 'Kitchen': return 'icons/kitchen.png';
+      case 'Garage': return 'icons/garage.png';
+      default: return 'icons/bolt.png';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Extract server data
     final bool pump = widget.data['manualPump'] ?? false;
     final bool canopy = widget.data['manualCanopy'] ?? false;
     final bool garage = widget.data['garageOpen'] ?? false;
@@ -29,38 +51,111 @@ class _ControlPageState extends State<ControlPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- HEADER: GREEN DOT ---
             Padding(
               padding: EdgeInsets.fromLTRB(25, MediaQuery.of(context).padding.top + 10, 25, 20),
-              child: Align(alignment: Alignment.topRight, child: Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: widget.isListening ? Colors.greenAccent : Colors.white10))),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Container(
+                  width: 8, height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.isListening ? Colors.greenAccent : Colors.white10,
+                  ),
+                ),
+              ),
             ),
-            const Padding(padding: EdgeInsets.symmetric(horizontal: 25), child: Text("Control Hub", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 25),
+              child: Text("Control Hub", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            ),
             const SizedBox(height: 25),
-            _tile("Garden Water Pump", pump, Icons.water_drop, Colors.blue, (v) => _toggle('toggle-pump', {'state': v}), true),
-            _tile("Balcony Canopy", canopy, Icons.umbrella, Colors.orangeAccent, (v) => _toggle('toggle-canopy', {'state': v}), true),
-            _tile("Garage Door", garage, Icons.garage, Colors.orangeAccent, (v) => _toggle('toggle-garage', {'state': v}), false),
-            const Padding(padding: EdgeInsets.fromLTRB(25, 30, 25, 15), child: Text("Lights", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+
+            // --- 1. GARDEN PUMP ---
+            _buildSwitchTile("Garden Water Pump", pump, Icons.water_drop, Colors.blue, (v) {
+              _toggle('toggle-pump', {'state': v}); // <--- _toggle used here
+            }, true),
+
+            // --- 2. BALCONY CANOPY ---
+            _buildSwitchTile("Balcony Canopy", canopy, Icons.umbrella, Colors.orangeAccent, (v) {
+              _toggle('toggle-canopy', {'state': v}); // <--- _toggle used here
+            }, true),
+
+            // --- 3. GARAGE DOOR ---
+            _buildSwitchTile("Garage Door", garage, Icons.garage, Colors.orangeAccent, (v) {
+              _toggle('toggle-garage', {'state': v}); // <--- _toggle used here
+            }, false),
+
+            const Padding(
+              padding: EdgeInsets.fromLTRB(25, 35, 25, 15),
+              child: Text("Lights", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+
+            // --- 4. LIGHTS GRID (ROOMS) ---
             GridView.count(
-              shrinkWrap: true, padding: const EdgeInsets.symmetric(horizontal: 25),
-              crossAxisCount: 2, crossAxisSpacing: 15, mainAxisSpacing: 15, childAspectRatio: 0.85,
-              children: lights.keys.map((n) {
-                bool isOn = lights[n] ?? false;
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 15,
+              mainAxisSpacing: 15,
+              childAspectRatio: 0.85,
+              children: lights.keys.map((name) {
+                bool isOn = lights[name] ?? false;
                 return GestureDetector(
-                  onTap: () => _toggle('toggle-light', {'name': n, 'state': !isOn}),
-                  child: Container(decoration: BoxDecoration(color: isOn ? Colors.blueAccent.withOpacity(0.1) : const Color(0xFF10141E), borderRadius: BorderRadius.circular(25), border: Border.all(color: isOn ? Colors.blueAccent.withOpacity(0.5) : Colors.transparent)),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Image.network('icons/${n == 'Living Room' ? 'couch' : n.toLowerCase()}.png', height: 45, color: isOn ? Colors.blueAccent : Colors.white24, errorBuilder: (c,e,s) => Icon(Icons.lightbulb, color: isOn ? Colors.yellow : Colors.white10)),
-                      const SizedBox(height: 10), Text(n, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ])),
+                  onTap: () {
+                    _toggle('toggle-light', {'name': name, 'state': !isOn}); // <--- _toggle used here
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    decoration: BoxDecoration(
+                      color: isOn ? Colors.blueAccent.withOpacity(0.1) : const Color(0xFF10141E),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: isOn ? Colors.blueAccent.withOpacity(0.5) : Colors.transparent, width: 2),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.network(
+                          _getIconPath(name),
+                          height: 45,
+                          color: isOn ? Colors.blueAccent : Colors.white24,
+                          errorBuilder: (c, e, s) => Icon(Icons.lightbulb, color: isOn ? Colors.yellow : Colors.white10),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text(isOn ? "Active" : "OFF", style: TextStyle(color: isOn ? Colors.blueAccent : Colors.white10, fontSize: 11)),
+                      ],
+                    ),
+                  ),
                 );
               }).toList(),
             ),
+            const SizedBox(height: 50),
           ],
         ),
       ),
     );
   }
 
-  Widget _tile(String t, bool v, IconData i, Color c, Function(bool) fn, bool auto) => Container(
-    margin: const EdgeInsets.fromLTRB(25, 0, 25, 12), decoration: BoxDecoration(color: const Color(0xFF10141E), borderRadius: BorderRadius.circular(20)),
-    child: ListTile(leading: Icon(i, color: v ? c : Colors.white10), title: Text(t, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)), subtitle: Text(auto ? (v ? "Manual Override: ON" : "Automatic Mode") : (v ? "OPEN" : "CLOSED"), style: const TextStyle(fontSize: 11)), trailing: Switch(value: v, activeColor: c, onChanged: fn)));
+  Widget _buildSwitchTile(String title, bool val, IconData icon, Color color, Function(bool) onChanged, bool hasAuto) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(25, 0, 25, 12),
+      decoration: BoxDecoration(color: const Color(0xFF10141E), borderRadius: BorderRadius.circular(20)),
+      child: ListTile(
+        leading: Icon(icon, color: val ? color : Colors.white10),
+        title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        subtitle: Text(
+          hasAuto ? (val ? "Manual Override: ON" : "Automatic Mode") : (val ? "OPEN" : "CLOSED"),
+          style: const TextStyle(fontSize: 11),
+        ),
+        trailing: Switch(
+          value: val,
+          activeColor: color,
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
 }
