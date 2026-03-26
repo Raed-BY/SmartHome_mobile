@@ -1,10 +1,8 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
 
-// Registration screen for new users.
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
 
@@ -13,15 +11,29 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  // Form controllers.
   final TextEditingController _name = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _pass = TextEditingController();
 
-  // Sends signup data to backend, then returns to login page.
   Future<void> _register() async {
+    // --- 1. VALIDATION CHECKS ---
+    if (!_email.text.contains('@') || !_email.text.endsWith('.com')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid Email: Must contain @ and .com"), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    if (_pass.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Password too short: Minimum 6 characters"), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    // --- 2. SIGNUP REQUEST ---
     try {
-      await http.post(
+      final response = await http.post(
         Uri.parse('${AppConfig.baseUrl}/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -31,17 +43,27 @@ class _SignupPageState extends State<SignupPage> {
         }),
       );
 
-      if (!mounted) {
-        return;
+      if (!mounted) return;
+
+      if (response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Account Created! Please login."), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Email already exists or server error"), backgroundColor: Colors.redAccent),
+        );
       }
-      // Back to previous page after successful account creation.
-      Navigator.pop(context);
-    } catch (_) {}
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Server Offline"), backgroundColor: Colors.redAccent),
+      );
+    }
   }
 
   @override
   void dispose() {
-    // Releases controller resources.
     _name.dispose();
     _email.dispose();
     _pass.dispose();
@@ -52,40 +74,34 @@ class _SignupPageState extends State<SignupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(40),
         child: Column(
           children: [
-            const Text(
-              'Join SmartHome',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
+            const Text('Join SmartHome', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 40),
-            // Name input.
             _input('Full Name', Icons.person, _name),
             const SizedBox(height: 20),
-            // Email input.
             _input('Email', Icons.email, _email),
             const SizedBox(height: 20),
-            // Password input.
             _input('Password', Icons.lock, _pass, obscure: true),
             const SizedBox(height: 40),
-            // Submit registration action.
             ElevatedButton(
-                onPressed: _register, child: const Text('CREATE ACCOUNT')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                minimumSize: const Size(double.infinity, 55),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+              onPressed: _register, 
+              child: const Text('CREATE ACCOUNT', style: TextStyle(fontWeight: FontWeight.bold))
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _input(
-    String hint,
-    IconData icon,
-    TextEditingController controller, {
-    bool obscure = false,
-  }) {
-    // Shared styled input field.
+  Widget _input(String hint, IconData icon, TextEditingController controller, {bool obscure = false}) {
     return TextField(
       controller: controller,
       obscureText: obscure,
@@ -94,10 +110,7 @@ class _SignupPageState extends State<SignupPage> {
         hintText: hint,
         filled: true,
         fillColor: const Color(0xFF10141E),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide.none,
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
       ),
     );
   }
