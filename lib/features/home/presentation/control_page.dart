@@ -29,11 +29,16 @@ class _ControlPageState extends State<ControlPage> {
   // Maps your rooms to your specific filenames in web/icons
   String _getIconPath(String name) {
     switch (name) {
-      case 'Living Room': return 'icons/couch.png';
-      case 'Bedroom': return 'icons/bedroom.png';
-      case 'Kitchen': return 'icons/kitchen.png';
-      case 'Garage': return 'icons/garage.png';
-      default: return 'icons/bolt.png';
+      case 'Living Room':
+        return 'assets/icons/couch.png';
+      case 'Bedroom':
+        return 'assets/icons/bedroom.png';
+      case 'Kitchen':
+        return 'assets/icons/kitchen.png';
+      case 'Garage':
+        return 'assets/icons/garage.png';
+      default:
+        return 'assets/icons/app_icon.png';
     }
   }
 
@@ -53,14 +58,18 @@ class _ControlPageState extends State<ControlPage> {
           children: [
             // --- HEADER: GREEN DOT ---
             Padding(
-              padding: EdgeInsets.fromLTRB(25, MediaQuery.of(context).padding.top + 10, 25, 20),
+              padding: EdgeInsets.fromLTRB(
+                  25, MediaQuery.of(context).padding.top + 10, 25, 20),
               child: Align(
                 alignment: Alignment.topRight,
                 child: Container(
-                  width: 8, height: 8,
+                  width: 8,
+                  height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: widget.isListening ? Colors.greenAccent : Colors.white10,
+                    color: widget.isListening
+                        ? Colors.greenAccent
+                        : Colors.white10,
                   ),
                 ),
               ),
@@ -68,28 +77,34 @@ class _ControlPageState extends State<ControlPage> {
 
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 25),
-              child: Text("Control Hub", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              child: Text("Control Hub",
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 25),
 
             // --- 1. GARDEN PUMP ---
-            _buildSwitchTile("Garden Water Pump", pump, Icons.water_drop, Colors.blue, (v) {
+            _buildSwitchTile(
+                "Garden Water Pump", pump, Icons.water_drop, Colors.blue, (v) {
               _toggle('toggle-pump', {'state': v}); // <--- _toggle used here
             }, true),
 
             // --- 2. BALCONY CANOPY ---
-            _buildSwitchTile("Balcony Canopy", canopy, Icons.umbrella, Colors.orangeAccent, (v) {
+            _buildSwitchTile(
+                "Balcony Canopy", canopy, Icons.umbrella, Colors.orangeAccent,
+                (v) {
               _toggle('toggle-canopy', {'state': v}); // <--- _toggle used here
             }, true),
 
             // --- 3. GARAGE DOOR ---
-            _buildSwitchTile("Garage Door", garage, Icons.garage, Colors.orangeAccent, (v) {
+            _buildSwitchTile(
+                "Garage Door", garage, Icons.garage, Colors.orangeAccent, (v) {
               _toggle('toggle-garage', {'state': v}); // <--- _toggle used here
             }, false),
 
             const Padding(
               padding: EdgeInsets.fromLTRB(25, 35, 25, 15),
-              child: Text("Lights", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text("Lights",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
 
             // --- 4. LIGHTS GRID (ROOMS) ---
@@ -105,27 +120,43 @@ class _ControlPageState extends State<ControlPage> {
                 bool isOn = lights[name] ?? false;
                 return GestureDetector(
                   onTap: () {
-                    _toggle('toggle-light', {'name': name, 'state': !isOn}); // <--- _toggle used here
+                    _toggle('toggle-light', {
+                      'name': name,
+                      'state': !isOn
+                    }); // <--- _toggle used here
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     decoration: BoxDecoration(
-                      color: isOn ? Colors.blueAccent.withOpacity(0.1) : const Color(0xFF10141E),
+                      color: isOn
+                          ? Colors.blueAccent.withOpacity(0.1)
+                          : const Color(0xFF10141E),
                       borderRadius: BorderRadius.circular(25),
-                      border: Border.all(color: isOn ? Colors.blueAccent.withOpacity(0.5) : Colors.transparent, width: 2),
+                      border: Border.all(
+                          color: isOn
+                              ? Colors.blueAccent.withOpacity(0.5)
+                              : Colors.transparent,
+                          width: 2),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.network(
+                        Image.asset(
                           _getIconPath(name),
                           height: 45,
                           color: isOn ? Colors.blueAccent : Colors.white24,
-                          errorBuilder: (c, e, s) => Icon(Icons.lightbulb, color: isOn ? Colors.yellow : Colors.white10),
+                          errorBuilder: (c, e, s) => Icon(Icons.lightbulb,
+                              color: isOn ? Colors.yellow : Colors.white10),
                         ),
                         const SizedBox(height: 12),
-                        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text(isOn ? "Active" : "OFF", style: TextStyle(color: isOn ? Colors.blueAccent : Colors.white10, fontSize: 11)),
+                        Text(name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text(isOn ? "Active" : "OFF",
+                            style: TextStyle(
+                                color:
+                                    isOn ? Colors.blueAccent : Colors.white10,
+                                fontSize: 11)),
                       ],
                     ),
                   ),
@@ -139,15 +170,21 @@ class _ControlPageState extends State<ControlPage> {
     );
   }
 
-  Widget _buildSwitchTile(String title, bool val, IconData icon, Color color, Function(bool) onChanged, bool hasAuto) {
+  Widget _buildSwitchTile(String title, bool val, IconData icon, Color color,
+      Function(bool) onChanged, bool hasAuto) {
     return Container(
       margin: const EdgeInsets.fromLTRB(25, 0, 25, 12),
-      decoration: BoxDecoration(color: const Color(0xFF10141E), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+          color: const Color(0xFF10141E),
+          borderRadius: BorderRadius.circular(20)),
       child: ListTile(
         leading: Icon(icon, color: val ? color : Colors.white10),
-        title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        title: Text(title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
         subtitle: Text(
-          hasAuto ? (val ? "Manual Override: ON" : "Automatic Mode") : (val ? "OPEN" : "CLOSED"),
+          hasAuto
+              ? (val ? "Manual Override: ON" : "Automatic Mode")
+              : (val ? "OPEN" : "CLOSED"),
           style: const TextStyle(fontSize: 11),
         ),
         trailing: Switch(
