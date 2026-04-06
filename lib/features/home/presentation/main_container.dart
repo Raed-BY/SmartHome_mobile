@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // REQUIRED FOR VIBRATION
 import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../core/config/app_config.dart';
@@ -18,8 +17,11 @@ class MainContainer extends StatefulWidget {
 class _MainContainerState extends State<MainContainer> {
   int _index = 0;
   bool _isSystemAwake = false;
+  bool _isServerOnline = true;
   bool _isAwaitingCommand = false;
+  bool _voiceAssistantAvailable = true;
   Timer? _commandWindowTimer;
+  Timer? _pollTimer;
   final String _clientId =
       '${DateTime.now().millisecondsSinceEpoch}-${identityHashCode(Object())}';
   Map<String, dynamic> data = {
@@ -30,6 +32,7 @@ class _MainContainerState extends State<MainContainer> {
     'manualPump': false,
     'manualCanopy': false,
     'garageOpen': false,
+    'lastVisitor': 'No one at the door',
     'lights': {
       'Living Room': false,
       'Bedroom': false,
@@ -44,7 +47,8 @@ class _MainContainerState extends State<MainContainer> {
   @override
   void initState() {
     super.initState();
-    Timer.periodic(const Duration(seconds: 2), (t) => _fetchData());
+    _pollTimer =
+        Timer.periodic(const Duration(seconds: 2), (t) => _fetchData());
   }
 
   // --- 1. ACTION & ALERT LOGIC ---
@@ -62,7 +66,6 @@ class _MainContainerState extends State<MainContainer> {
         SnackBar(content: Text('$title: $body')),
       );
     }
-    HapticFeedback.vibrate();
   }
 
   void _checkForAutomations(Map<String, dynamic> newData) {
@@ -83,10 +86,27 @@ class _MainContainerState extends State<MainContainer> {
 
   // --- 2. VOICE ASSISTANT ---
   void _startAssistant() async {
-    bool avail = await _speech.initialize(onStatus: (s) {
-      if (s == 'done' || s == 'notListening') if (_isSystemAwake) _listenLoop();
-    });
-    if (avail) _listenLoop();
+    if (!_voiceAssistantAvailable) {
+      return;
+    }
+
+    try {
+      final bool avail = await _speech.initialize();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (avail) {
+        _listenLoop();
+      } else {
+        setState(() => _voiceAssistantAvailable = false);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _voiceAssistantAvailable = false);
+      }
+    }
   }
 
   bool _containsWakeWord(String text) {
@@ -116,11 +136,19 @@ class _MainContainerState extends State<MainContainer> {
   }
 
   void _listenLoop() {
-    _speech.listen(
-      listenOptions: stt.SpeechListenOptions(partialResults: true),
-      onResult: (val) => _processSpeech(val.recognizedWords.toLowerCase()),
-    );
-    if (mounted) setState(() {});
+    try {
+      _speech.listen(
+        listenFor: const Duration(minutes: 30),
+        pauseFor: const Duration(minutes: 5),
+        listenOptions: stt.SpeechListenOptions(partialResults: true),
+        onResult: (val) => _processSpeech(val.recognizedWords.toLowerCase()),
+      );
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) {
+        setState(() => _voiceAssistantAvailable = false);
+      }
+    }
   }
 
   void _processSpeech(String text) {
@@ -180,14 +208,27 @@ class _MainContainerState extends State<MainContainer> {
       if (res.statusCode == 200 && mounted) {
         final newData = jsonDecode(res.body);
         _checkForAutomations(newData);
-        setState(() => data = newData);
+        setState(() {
+          data = newData;
+          _isServerOnline = true;
+        });
+        return;
       }
-    } catch (_) {}
+
+      if (mounted) {
+        setState(() => _isServerOnline = false);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isServerOnline = false);
+      }
+    }
   }
 
   @override
   void dispose() {
     _commandWindowTimer?.cancel();
+    _pollTimer?.cancel();
     _speech.stop();
     super.dispose();
   }
@@ -198,7 +239,9 @@ class _MainContainerState extends State<MainContainer> {
       return GestureDetector(
         onTap: () {
           setState(() => _isSystemAwake = true);
-          _startAssistant();
+          if (_voiceAssistantAvailable) {
+            _startAssistant();
+          }
         },
         child: Scaffold(
           body: Center(
@@ -213,11 +256,41 @@ class _MainContainerState extends State<MainContainer> {
     }
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: [
-        DashboardPage(data: data, isListening: _speech.isListening),
-        ControlPage(data: data, isListening: _speech.isListening),
-        SettingsPage(data: data, isListening: _speech.isListening),
-      ]),
+      body: Stack(
+        children: [
+          IndexedStack(index: _index, children: [
+            DashboardPage(
+              data: data,
+              isListening: _speech.isListening,
+              isServerOnline: _isServerOnline,
+            ),
+            ControlPage(data: data, isListening: _speech.isListening),
+            SettingsPage(data: data, isListening: _speech.isListening),
+          ]),
+          if (!_isServerOnline)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Text(
+                    'Server Offline',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),

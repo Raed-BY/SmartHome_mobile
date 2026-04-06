@@ -30,7 +30,7 @@ class SettingsPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(15),
                   decoration: BoxDecoration(
-                    color: Colors.orangeAccent.withOpacity(0.1),
+                    color: Colors.orangeAccent.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.lock_outline_rounded,
@@ -69,7 +69,7 @@ class SettingsPage extends StatelessWidget {
                     prefixIcon:
                         const Icon(Icons.key_rounded, color: Colors.blueAccent),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.05),
+                    fillColor: Colors.white.withValues(alpha: 0.05),
                     // --- ERROR LOGIC ---
                     errorText: errorText,
                     errorStyle: const TextStyle(color: Colors.redAccent),
@@ -175,7 +175,8 @@ class SettingsPage extends StatelessWidget {
                         boxShadow: isListening
                             ? [
                                 BoxShadow(
-                                    color: Colors.greenAccent.withOpacity(0.4),
+                                    color: Colors.greenAccent
+                                        .withValues(alpha: 0.4),
                                     blurRadius: 8)
                               ]
                             : [],
@@ -197,7 +198,7 @@ class SettingsPage extends StatelessWidget {
               Colors.blueAccent,
               Switch(
                 value: prox,
-                activeColor: Colors.blueAccent,
+                activeThumbColor: Colors.blueAccent,
                 onChanged: (v) => http.post(
                     Uri.parse('${AppConfig.baseUrl}/toggle-proximity'),
                     headers: {'Content-Type': 'application/json'},
@@ -277,14 +278,14 @@ class SettingsPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF10141E),
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: Colors.white.withOpacity(0.02)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.02)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-              color: color.withOpacity(0.1), shape: BoxShape.circle),
+              color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: Icon(icon, color: color, size: 22),
         ),
         title: Text(title,

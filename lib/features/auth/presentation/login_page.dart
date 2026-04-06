@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -22,41 +24,100 @@ class _LoginPageState extends State<LoginPage> {
 
   // Sends credentials to backend and routes user on success.
   Future<void> _login() async {
+    final email = _email.text.trim();
+    final pass = _pass.text.trim();
+
+    if (email.isEmpty || pass.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter email and password'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     try {
       // POST /login with JSON payload.
-      final response = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': _email.text, 'pass': _pass.text}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.baseUrl}/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'pass': pass}),
+          )
+          .timeout(const Duration(seconds: 6));
 
       // Prevents using context if widget was disposed.
       if (!mounted) {
         return;
       }
 
-      // 201 means authentication succeeded.
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const MainContainer()),
         );
-      } else {
-        // User feedback for invalid credentials.
+      } else if (response.statusCode == 401) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Login Failed'),
+            content: Text('Invalid email or password'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login failed (${response.statusCode})'),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
+    } on SocketException catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Server Offline. Check Wi-Fi and server IP: ${AppConfig.baseUrl}',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } on TimeoutException catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Server timeout. Try again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } on http.ClientException catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Network error. Verify backend URL: ${AppConfig.baseUrl}',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     } catch (_) {
       if (!mounted) {
         return;
       }
-      // User feedback for offline backend/network issue.
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server Offline')),
+        const SnackBar(
+          content: Text('Login failed due to unexpected error'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     }
   }

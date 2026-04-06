@@ -22,7 +22,8 @@ class _ControlPageState extends State<ControlPage> {
         body: jsonEncode(body),
       );
     } catch (e) {
-      print("Error: $e");
+      // TODO: Implement proper error logging/snackbar notification
+      // print("Error: $e");
     }
   }
 
@@ -44,6 +45,9 @@ class _ControlPageState extends State<ControlPage> {
 
   @override
   Widget build(BuildContext context) {
+    final double h = MediaQuery.of(context).size.height;
+    final double s = h < 780 ? 1.0 : 1.08;
+
     // Extract server data
     final bool pump = widget.data['manualPump'] ?? false;
     final bool canopy = widget.data['manualCanopy'] ?? false;
@@ -52,14 +56,13 @@ class _ControlPageState extends State<ControlPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF02040A),
-      body: SingleChildScrollView(
+      body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- HEADER: GREEN DOT ---
             Padding(
-              padding: EdgeInsets.fromLTRB(
-                  25, MediaQuery.of(context).padding.top + 10, 25, 20),
+              padding: EdgeInsets.fromLTRB(18 * s, 9, 18 * s, 11),
               child: Align(
                 alignment: Alignment.topRight,
                 child: Container(
@@ -75,18 +78,20 @@ class _ControlPageState extends State<ControlPage> {
               ),
             ),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 25),
-              child: Text("Control Hub",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 18 * s),
+              child: const Text("Control Hub",
+                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
             ),
-            const SizedBox(height: 25),
+            SizedBox(height: h * 0.014),
 
             // --- 1. GARDEN PUMP ---
             _buildSwitchTile(
                 "Garden Water Pump", pump, Icons.water_drop, Colors.blue, (v) {
               _toggle('toggle-pump', {'state': v}); // <--- _toggle used here
             }, true),
+
+            SizedBox(height: h * 0.01),
 
             // --- 2. BALCONY CANOPY ---
             _buildSwitchTile(
@@ -95,75 +100,81 @@ class _ControlPageState extends State<ControlPage> {
               _toggle('toggle-canopy', {'state': v}); // <--- _toggle used here
             }, true),
 
+            SizedBox(height: h * 0.01),
+
             // --- 3. GARAGE DOOR ---
             _buildSwitchTile(
                 "Garage Door", garage, Icons.garage, Colors.orangeAccent, (v) {
               _toggle('toggle-garage', {'state': v}); // <--- _toggle used here
             }, false),
 
-            const Padding(
-              padding: EdgeInsets.fromLTRB(25, 35, 25, 15),
-              child: Text("Lights",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: EdgeInsets.fromLTRB(18 * s, 13, 18 * s, 9),
+              child: const Text("Lights",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
 
             // --- 4. LIGHTS GRID (ROOMS) ---
-            GridView.count(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(horizontal: 25),
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 15,
-              mainAxisSpacing: 15,
-              childAspectRatio: 0.85,
-              children: lights.keys.map((name) {
-                bool isOn = lights[name] ?? false;
-                return GestureDetector(
-                  onTap: () {
-                    _toggle('toggle-light', {
-                      'name': name,
-                      'state': !isOn
-                    }); // <--- _toggle used here
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    decoration: BoxDecoration(
-                      color: isOn
-                          ? Colors.blueAccent.withOpacity(0.1)
-                          : const Color(0xFF10141E),
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                          color: isOn
-                              ? Colors.blueAccent.withOpacity(0.5)
-                              : Colors.transparent,
-                          width: 2),
+            Expanded(
+              child: GridView.count(
+                shrinkWrap: true,
+                padding: EdgeInsets.symmetric(horizontal: 18 * s),
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.03,
+                children: lights.keys.map((name) {
+                  bool isOn = lights[name] ?? false;
+                  return GestureDetector(
+                    onTap: () {
+                      _toggle('toggle-light', {
+                        'name': name,
+                        'state': !isOn
+                      }); // <--- _toggle used here
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      decoration: BoxDecoration(
+                        color: isOn
+                            ? Colors.blueAccent.withValues(alpha: 0.1)
+                            : const Color(0xFF10141E),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                            color: isOn
+                                ? Colors.blueAccent.withValues(alpha: 0.5)
+                                : Colors.transparent,
+                            width: 2),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            _getIconPath(name),
+                            height: 38,
+                            color: isOn ? Colors.blueAccent : Colors.white24,
+                            errorBuilder: (c, e, s) => Icon(Icons.lightbulb,
+                                size: 30,
+                                color: isOn ? Colors.yellow : Colors.white10),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(name,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 12.5)),
+                          Text(isOn ? "Active" : "OFF",
+                              style: TextStyle(
+                                  color:
+                                      isOn ? Colors.blueAccent : Colors.white10,
+                                  fontSize: 10.5)),
+                        ],
+                      ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          _getIconPath(name),
-                          height: 45,
-                          color: isOn ? Colors.blueAccent : Colors.white24,
-                          errorBuilder: (c, e, s) => Icon(Icons.lightbulb,
-                              color: isOn ? Colors.yellow : Colors.white10),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text(isOn ? "Active" : "OFF",
-                            style: TextStyle(
-                                color:
-                                    isOn ? Colors.blueAccent : Colors.white10,
-                                fontSize: 11)),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
-            const SizedBox(height: 50),
+            SizedBox(height: h * 0.01),
           ],
         ),
       ),
@@ -173,23 +184,27 @@ class _ControlPageState extends State<ControlPage> {
   Widget _buildSwitchTile(String title, bool val, IconData icon, Color color,
       Function(bool) onChanged, bool hasAuto) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(25, 0, 25, 12),
+      margin: const EdgeInsets.fromLTRB(18, 0, 18, 0),
       decoration: BoxDecoration(
           color: const Color(0xFF10141E),
-          borderRadius: BorderRadius.circular(20)),
+          borderRadius: BorderRadius.circular(18)),
       child: ListTile(
-        leading: Icon(icon, color: val ? color : Colors.white10),
+        dense: true,
+        minVerticalPadding: 3,
+        horizontalTitleGap: 10,
+        visualDensity: const VisualDensity(vertical: -1.6),
+        leading: Icon(icon, size: 22, color: val ? color : Colors.white10),
         title: Text(title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
         subtitle: Text(
           hasAuto
               ? (val ? "Manual Override: ON" : "Automatic Mode")
               : (val ? "OPEN" : "CLOSED"),
-          style: const TextStyle(fontSize: 11),
+          style: const TextStyle(fontSize: 10.5),
         ),
         trailing: Switch(
           value: val,
-          activeColor: color,
+          activeThumbColor: color,
           onChanged: onChanged,
         ),
       ),
