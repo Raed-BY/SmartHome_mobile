@@ -34,6 +34,11 @@
 	<string>SmartHome uses Bluetooth to open your garage when you arrive.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>SmartHome uses Bluetooth to detect your proximity to the garage.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

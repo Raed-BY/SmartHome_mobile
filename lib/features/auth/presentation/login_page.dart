@@ -41,6 +41,20 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
+      final reachable = await AppConfig.ensureReachable();
+      if (!reachable) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Backend not reachable. Check Wi-Fi and firewall.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
       // POST /login with JSON payload.
       final response = await http
           .post(
