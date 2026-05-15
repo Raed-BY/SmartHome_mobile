@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_app/core/config/app_config.dart';
 import 'package:mobile_app/core/widgets/app_logo.dart';
-import 'package:mobile_app/features/auth/presentation/signup_page.dart';
+import 'package:mobile_app/core/services/biometric_service.dart';
+import 'package:mobile_app/core/services/secure_storage_service.dart';
+// Signup is managed externally; no in-app registration.
 import 'package:mobile_app/features/home/presentation/main_container.dart';
 
 // Login screen for existing users.
@@ -70,6 +72,16 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final token = body['token'] as String?;
+        if (token != null) {
+          await SecureStorageService.saveToken(token);
+        }
+        // Also save credentials locally so fingerprint can unlock without typing.
+        await SecureStorageService.saveCredentials(email, pass);
+        if (!mounted) {
+          return;
+        }
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const MainContainer()),
@@ -136,12 +148,91 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> _loginWithStoredCredentials() async {
+    final creds = await SecureStorageService.readCredentials();
+    final email = creds['email'] ?? '';
+    final pass = creds['pass'] ?? '';
+    if (email.isEmpty || pass.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No stored credentials. Sign in once to enable fingerprint.'),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+      return;
+    }
+
+    // Populate fields and attempt normal login flow.
+    _email.text = email;
+    _pass.text = pass;
+    await _login();
+  }
+
   @override
   void dispose() {
     // Releases controller resources.
     _email.dispose();
     _pass.dispose();
     super.dispose();
+  }
+
+  // Biometric helper
+  final BiometricService _biometric = BiometricService();
+  bool _biometricAvailable = false;
+  bool _isBiometricBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initBiometricAutoLogin();
+  }
+
+  Future<void> _initBiometricAutoLogin() async {
+    // Check if device supports biometrics and whether we have stored creds.
+    final creds = await SecureStorageService.readCredentials();
+    final hasCreds = (creds['email']?.isNotEmpty ?? false) &&
+        (creds['pass']?.isNotEmpty ?? false);
+    final bioOk = await _biometric.canCheckBiometrics();
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = bioOk;
+    });
+
+    // If biometrics available and credentials stored, attempt immediate auth and auto-login.
+    if (bioOk && hasCreds) {
+      await _tryBiometricLogin(showFailureMessage: false);
+    }
+  }
+
+  Future<void> _tryBiometricLogin({bool showFailureMessage = true}) async {
+    if (_isBiometricBusy) {
+      return;
+    }
+
+    setState(() => _isBiometricBusy = true);
+    try {
+      final ok = await _biometric.authenticate(
+        localizedReason: 'Authenticate to sign in',
+      );
+
+      if (ok) {
+        await _loginWithStoredCredentials();
+      } else if (showFailureMessage && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Fingerprint authentication was cancelled or failed.'),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isBiometricBusy = false);
+      }
+    }
   }
 
   @override
@@ -177,18 +268,18 @@ class _LoginPageState extends State<LoginPage> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
+              const SizedBox(height: 12),
+              if (_biometricAvailable)
+                OutlinedButton.icon(
+                  onPressed: _isBiometricBusy
+                      ? null
+                      : () => _tryBiometricLogin(showFailureMessage: true),
+                  icon: const Icon(Icons.fingerprint),
+                  label: Text(_isBiometricBusy
+                      ? 'AUTHENTICATING...'
+                      : 'SIGN IN WITH FINGERPRINT'),
+                ),
               const SizedBox(height: 20),
-              // Navigate to registration page.
-              TextButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SignupPage()),
-                ),
-                child: const Text(
-                  'Create Account',
-                  style: TextStyle(color: Colors.white24),
-                ),
-              ),
             ],
           ),
         ),

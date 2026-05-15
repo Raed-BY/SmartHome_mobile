@@ -1,0 +1,7 @@
+{
+  "name": "smarthome-mobile-app",
+  "private": true,
+  "scripts": {
+    "start": "flutter run"
+  }
+}

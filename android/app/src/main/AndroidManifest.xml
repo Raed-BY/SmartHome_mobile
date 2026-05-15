@@ -3,6 +3,9 @@
     <!-- 🎤 Permissions for Voice Assistant -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Biometrics -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
     <!-- 🔵 Permissions for Bluetooth Proximity (Garage) -->
     <uses-permission android:name="android.permission.BLUETOOTH" />

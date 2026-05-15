@@ -11,6 +11,8 @@ dependencies:
   http: ^1.1.0
   mqtt_client: ^10.11.10
   speech_to_text: ^7.3.0
+  local_auth: ^2.1.9
+  flutter_secure_storage: ^8.0.0
 
 dev_dependencies:
   flutter_test:

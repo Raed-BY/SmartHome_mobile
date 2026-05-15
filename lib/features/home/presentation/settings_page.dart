@@ -4,11 +4,21 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/app_config.dart';
 import '../../auth/presentation/login_page.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   final Map<String, dynamic> data;
   final bool isListening;
   const SettingsPage(
       {super.key, required this.data, required this.isListening});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  @override
+  void initState() {
+    super.initState();
+  }
 
   // --- 🔐 PROFESSIONAL PASSWORD DIALOG WITH LIVE VALIDATION 🔐 ---
   void _showPasswordDialog(BuildContext context) {
@@ -150,8 +160,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final info = data['systemInfo'] ?? {};
-    final bool prox = data['proximityEnabled'] ?? false;
+    final info = widget.data['systemInfo'] ?? {};
 
     return Scaffold(
       backgroundColor: const Color(0xFF02040A),
@@ -170,9 +179,10 @@ class SettingsPage extends StatelessWidget {
                       height: 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color:
-                            isListening ? Colors.greenAccent : Colors.white10,
-                        boxShadow: isListening
+                        color: widget.isListening
+                            ? Colors.greenAccent
+                            : Colors.white10,
+                        boxShadow: widget.isListening
                             ? [
                                 BoxShadow(
                                     color: Colors.greenAccent
@@ -190,23 +200,7 @@ class SettingsPage extends StatelessWidget {
                         TextStyle(fontSize: 32, fontWeight: FontWeight.bold))),
             const SizedBox(height: 30),
 
-            // --- 1. PASSIVE ENTRY SECTION ---
-            _item(
-              'Passive Entry (BLE)',
-              'Unlock garage via proximity',
-              Icons.bluetooth_searching,
-              Colors.blueAccent,
-              Switch(
-                value: prox,
-                activeThumbColor: Colors.blueAccent,
-                onChanged: (v) => http.post(
-                    Uri.parse('${AppConfig.baseUrl}/toggle-proximity'),
-                    headers: {'Content-Type': 'application/json'},
-                    body: jsonEncode({'state': v})),
-              ),
-            ),
-
-            // --- 2. SECURITY SECTION ---
+            // --- 1. SECURITY SECTION ---
             _item(
               'System Password',
               'Change your access key',
@@ -245,7 +239,7 @@ class SettingsPage extends StatelessWidget {
                 null),
             _item("Server IP: ${info['serverIP']}", 'Backend communication',
                 Icons.lan, Colors.green, null),
-            _item("Hardware: ESP32-S3", 'System controller', Icons.memory,
+            _item("Hardware: ESP32", 'System controller', Icons.memory,
                 Colors.purpleAccent, null),
 
             const SizedBox(height: 50),

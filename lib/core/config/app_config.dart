@@ -2,22 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class AppConfig {
-  // Web runs in browser on your PC, so localhost works there.
-  static const String webBaseUrl = 'http://127.0.0.1:3000/smarthome';
-  // Phones must use your PC LAN IP on the same Wi-Fi network.
-  static const String mobileBaseUrl = 'http://192.168.100.56:3000/smarthome';
-  static const String emulatorBaseUrl = 'http://10.0.2.2:3000/smarthome';
-  static const String reverseTunnelBaseUrl = 'http://127.0.0.1:3000/smarthome';
-  static const String fallbackLanBaseUrl = 'http://192.168.1.7:3000/smarthome';
+  // Primary LAN target for physical devices
+  static const String baseUrlHost = 'http://172.20.10.4:3000/smarthome';
+  static const String webBaseUrl = baseUrlHost;
+  static const String mobileBaseUrl = baseUrlHost;
 
   static String _activeMobileBaseUrl = mobileBaseUrl;
 
   static List<String> get mobileBaseUrlCandidates => [
         _activeMobileBaseUrl,
         mobileBaseUrl,
-        emulatorBaseUrl,
-        reverseTunnelBaseUrl,
-        fallbackLanBaseUrl,
+        'http://172.20.10.2:3000/smarthome',
+        'http://10.0.2.2:3000/smarthome',
+        'http://172.20.10.4:3000/smarthome',
       ];
 
   static String get baseUrl => kIsWeb ? webBaseUrl : _activeMobileBaseUrl;
@@ -26,14 +23,11 @@ class AppConfig {
     _activeMobileBaseUrl = value;
   }
 
+  // Verify backend is reachable and switch to a healthy candidate if needed
   static Future<bool> ensureReachable({Duration? timeout}) async {
-    if (kIsWeb) {
-      return true;
-    }
-
     final requestTimeout = timeout ?? const Duration(seconds: 3);
-    final candidates = mobileBaseUrlCandidates.toSet();
 
+    final candidates = mobileBaseUrlCandidates.toSet();
     for (final base in candidates) {
       try {
         final res =

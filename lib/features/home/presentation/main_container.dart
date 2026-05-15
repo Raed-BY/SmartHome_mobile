@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../core/config/app_config.dart';
+import '../../../core/widgets/app_logo.dart';
 import 'control_page.dart';
 import 'dashboard_page.dart';
 import 'settings_page.dart';
@@ -31,6 +33,7 @@ class _MainContainerState extends State<MainContainer> {
     'soilMoisture': 0,
     'gasLevel': 0,
     'isRaining': false,
+    'motionDetected': false,
     'manualPump': false,
     'manualCanopy': false,
     'garageOpen': false,
@@ -41,7 +44,7 @@ class _MainContainerState extends State<MainContainer> {
       'Kitchen': false,
       'Garage': false
     },
-    'systemInfo': {'userName': 'User', 'activeMembers': 1, 'familyMembers': 1}
+    'systemInfo': {'userName': 'test', 'activeMembers': 1, 'familyMembers': 1}
   };
 
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -49,6 +52,7 @@ class _MainContainerState extends State<MainContainer> {
   @override
   void initState() {
     super.initState();
+    _fetchData();
     _pollTimer =
         Timer.periodic(const Duration(seconds: 2), (t) => _fetchData());
   }
@@ -71,19 +75,46 @@ class _MainContainerState extends State<MainContainer> {
   }
 
   void _checkForAutomations(Map<String, dynamic> newData) {
-    if (newData['gasLevel'] > 450 && data['gasLevel'] <= 450) {
-      _sendAlert("⚠️ GAS EMERGENCY", "Dangerous gas levels detected!");
+    // 1. Gas Emergency
+    if (newData['smokeDanger'] == true || ((newData['gasLevel'] ?? 0) > 3000)) {
+      _sendAlert("⚠️ GAS", "Danger detected!");
     }
-    if (newData['soilMoisture'] < 30 &&
-        data['soilMoisture'] >= 30 &&
-        newData['manualPump'] == false) {
-      _sendAlert("💧 Irrigation", "Garden pump started automatically.");
+
+    // 2. Visitor Popup
+    if (newData['motionDetected'] == true && data['motionDetected'] == false) {
+      _showVisitorDialog(
+        (newData['lastVisitor'] ?? 'Someone is at the door').toString(),
+      );
     }
-    if (newData['isRaining'] == true &&
-        data['isRaining'] == false &&
-        newData['manualCanopy'] == false) {
-      _sendAlert("☔ Weather Alert", "Rain detected. Canopy opening.");
-    }
+  }
+
+  void _showVisitorDialog(String msg) {
+    HapticFeedback.vibrate();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0D1117),
+        title: const Text("🔔 Doorbell"),
+        content: Text(msg),
+        actions: [
+          TextButton(
+              onPressed: () {
+                _toggle('reset-doorbell', {});
+                Navigator.pop(context);
+              },
+              child: const Text("IGNORE")),
+          ElevatedButton(
+            onPressed: () {
+              _toggle('toggle-door', {'state': true});
+              _toggle('reset-doorbell', {});
+              Navigator.pop(context);
+            },
+            child: const Text("OPEN DOOR"),
+          ),
+        ],
+      ),
+    );
   }
 
   // --- 2. VOICE ASSISTANT ---
@@ -101,6 +132,8 @@ class _MainContainerState extends State<MainContainer> {
     }
 
     _assistantEnabled = true;
+    // When the user taps the mic, open the command window so immediate commands are accepted
+    _openCommandWindow();
     _listenLoop();
     if (mounted) {
       setState(() {});
@@ -223,22 +256,6 @@ class _MainContainerState extends State<MainContainer> {
       _openCommandWindow();
       return;
     }
-
-    if (_looksLikeDirectCommand(cmd)) {
-      _processVoiceCommand(cmd);
-    }
-  }
-
-  bool _looksLikeDirectCommand(String cmd) {
-    return cmd.contains('bedroom') ||
-        cmd.contains('kitchen') ||
-        cmd.contains('living') ||
-        cmd.contains('garage') ||
-        cmd.contains('pump') ||
-        cmd.contains('water') ||
-        cmd.contains('canopy') ||
-        cmd.contains('balcony') ||
-        cmd.contains('light');
   }
 
   void _processVoiceCommand(String cmd) {
@@ -362,24 +379,18 @@ class _MainContainerState extends State<MainContainer> {
       return GestureDetector(
         onTap: () {
           setState(() => _isSystemAwake = true);
-          if (_voiceAssistantAvailable) {
-            _startAssistant();
-          }
         },
         child: Scaffold(
+          backgroundColor: const Color(0xFF02040A),
           body: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.bolt_rounded,
-                  size: 100,
-                  color: Colors.blueAccent.withValues(alpha: 0.3),
-                ),
-                const SizedBox(height: 12),
-                const Text(
+              children: const [
+                AppLogo(),
+                SizedBox(height: 20),
+                Text(
                   'Tap to wake SmartHome',
-                  style: TextStyle(color: Colors.white54),
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
               ],
             ),
