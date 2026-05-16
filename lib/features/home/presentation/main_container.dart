@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/widgets/app_logo.dart';
 import 'control_page.dart';
@@ -24,6 +25,8 @@ class _MainContainerState extends State<MainContainer> {
   bool _voiceAssistantAvailable = true;
   bool _assistantEnabled = false;
   bool _isResolvingEndpoint = false;
+  bool _isVisitorDialogOpen = false;
+  int _lastDoorbellEventId = -1;
   Timer? _commandWindowTimer;
   Timer? _pollTimer;
   final String _clientId =
@@ -80,39 +83,149 @@ class _MainContainerState extends State<MainContainer> {
       _sendAlert("⚠️ GAS", "Danger detected!");
     }
 
-    // 2. Visitor Popup
-    if (newData['motionDetected'] == true && data['motionDetected'] == false) {
+    // 2. Visitor Popup — trigger on doorbell event id change
+    final eventId = (newData['doorbellEventId'] as num?)?.toInt() ?? 0;
+    if (eventId > 0 &&
+        eventId != _lastDoorbellEventId &&
+        !_isVisitorDialogOpen) {
+      _lastDoorbellEventId = eventId;
       _showVisitorDialog(
         (newData['lastVisitor'] ?? 'Someone is at the door').toString(),
       );
+    } else if (eventId == 0 && _lastDoorbellEventId == -1) {
+      // Initial sync: remember current id so first poll doesn't fire stale popup
+      _lastDoorbellEventId = eventId;
     }
   }
 
-  void _showVisitorDialog(String msg) {
+  void _showVisitorDialog(String visitorName) {
     HapticFeedback.vibrate();
+    _isVisitorDialogOpen = true;
+
+    final isUnknown = visitorName.toLowerCase() == 'unknown';
+    final displayMsg = (visitorName == 'No one at the door')
+        ? visitorName
+        : '$visitorName is on the door';
+
+    // Play ringtone for 3 seconds then stop (don't crash dialog if it fails)
+    try {
+      FlutterRingtonePlayer().playRingtone(looping: true);
+      Future.delayed(
+        const Duration(seconds: 3),
+        () => FlutterRingtonePlayer().stop(),
+      );
+    } catch (_) {}
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF0D1117),
-        title: const Text("🔔 Doorbell"),
-        content: Text(msg),
-        actions: [
-          TextButton(
-              onPressed: () {
-                _toggle('reset-doorbell', {});
-                Navigator.pop(context);
-              },
-              child: const Text("IGNORE")),
-          ElevatedButton(
-            onPressed: () {
-              _toggle('toggle-door', {'state': true});
-              _toggle('reset-doorbell', {});
-              Navigator.pop(context);
-            },
-            child: const Text("OPEN DOOR"),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D1117),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
+          padding: const EdgeInsets.fromLTRB(28, 36, 28, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.notifications_active_rounded,
+                size: 64,
+                color: isUnknown ? Colors.orangeAccent : const Color(0xFFFFC107),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Doorbell',
+                style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.6,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                displayMsg,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isUnknown ? Colors.orangeAccent : Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E88E5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    _isVisitorDialogOpen = false;
+                    try { FlutterRingtonePlayer().stop(); } catch (_) {}
+                    _toggle('toggle-door', {'state': true});
+                    _toggle('reset-doorbell', {});
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text(
+                    'OPEN DOOR',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Colors.white24),
+                    ),
+                  ),
+                  onPressed: () {
+                    _isVisitorDialogOpen = false;
+                    try { FlutterRingtonePlayer().stop(); } catch (_) {}
+                    _toggle('reset-doorbell', {});
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text(
+                    'IGNORE',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -380,12 +493,12 @@ class _MainContainerState extends State<MainContainer> {
         onTap: () {
           setState(() => _isSystemAwake = true);
         },
-        child: Scaffold(
-          backgroundColor: const Color(0xFF02040A),
+        child: const Scaffold(
+          backgroundColor: Color(0xFF02040A),
           body: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 AppLogo(),
                 SizedBox(height: 20),
                 Text(
