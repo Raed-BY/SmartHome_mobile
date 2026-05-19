@@ -20,6 +20,32 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
   }
 
+  // --- Toggle the entire pump system on/off (kill switch) ---
+  Future<void> _togglePumpSystem(bool currentlyDisabled) async {
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/toggle-pump-system'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'disabled': !currentlyDisabled}),
+      );
+      if (!mounted) return;
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: !currentlyDisabled ? Colors.redAccent : Colors.green,
+            content: Text(
+              !currentlyDisabled
+                  ? 'Pump system DISABLED — neither manual nor automatic will run'
+                  : 'Pump system RE-ENABLED — back to automatic mode',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Pump system toggle failed: $e');
+    }
+  }
+
   // --- 🔐 PROFESSIONAL PASSWORD DIALOG WITH LIVE VALIDATION 🔐 ---
   void _showPasswordDialog(BuildContext context) {
     final TextEditingController passController = TextEditingController();
@@ -212,6 +238,28 @@ class _SettingsPageState extends State<SettingsPage> {
                 onPressed: () => _showPasswordDialog(context),
               ),
             ),
+
+            // --- 2. PUMP SYSTEM MASTER SWITCH ---
+            // ON  → both Manual and Automatic modes are available
+            // OFF → pump is forced OFF; neither mode can activate it
+            Builder(builder: (context) {
+              final bool disabled = widget.data['pumpSystemDisabled'] == true;
+              return _item(
+                disabled ? 'Pump System: OFF' : 'Pump System: ON',
+                disabled
+                    ? 'Pump locked OFF — manual & auto both disabled'
+                    : 'Manual & automatic modes available',
+                disabled ? Icons.power_off : Icons.power_settings_new,
+                disabled ? Colors.redAccent : Colors.greenAccent,
+                Switch(
+                  value: !disabled,
+                  activeThumbColor: Colors.greenAccent,
+                  inactiveThumbColor: Colors.redAccent,
+                  inactiveTrackColor: Colors.red.withValues(alpha: 0.3),
+                  onChanged: (_) => _togglePumpSystem(disabled),
+                ),
+              );
+            }),
 
             const SizedBox(height: 25),
             const Padding(

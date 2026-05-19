@@ -35,10 +35,8 @@ class _MainContainerState extends State<MainContainer> {
     'tempSalon': 0,
     'soilMoisture': 0,
     'gasLevel': 0,
-    'isRaining': false,
     'motionDetected': false,
     'manualPump': false,
-    'manualCanopy': false,
     'garageOpen': false,
     'lastVisitor': 'No one at the door',
     'lights': {
@@ -79,22 +77,23 @@ class _MainContainerState extends State<MainContainer> {
 
   void _checkForAutomations(Map<String, dynamic> newData) {
     // 1. Gas Emergency
-    if (newData['smokeDanger'] == true || ((newData['gasLevel'] ?? 0) > 3000)) {
+    if (newData['smokeDanger'] == true || ((newData['gasLevel'] ?? 0) > 1200)) {
       _sendAlert("⚠️ GAS", "Danger detected!");
     }
 
     // 2. Visitor Popup — trigger on doorbell event id change
     final eventId = (newData['doorbellEventId'] as num?)?.toInt() ?? 0;
-    if (eventId > 0 &&
-        eventId != _lastDoorbellEventId &&
-        !_isVisitorDialogOpen) {
+    if (_lastDoorbellEventId == -1) {
+      // First poll after app start — sync the current id WITHOUT firing popup.
+      // Otherwise any leftover event from before app launch would falsely fire.
+      _lastDoorbellEventId = eventId;
+      return;
+    }
+    if (eventId > _lastDoorbellEventId && !_isVisitorDialogOpen) {
       _lastDoorbellEventId = eventId;
       _showVisitorDialog(
         (newData['lastVisitor'] ?? 'Someone is at the door').toString(),
       );
-    } else if (eventId == 0 && _lastDoorbellEventId == -1) {
-      // Initial sync: remember current id so first poll doesn't fire stale popup
-      _lastDoorbellEventId = eventId;
     }
   }
 
@@ -397,9 +396,6 @@ class _MainContainerState extends State<MainContainer> {
     }
     if (cmd.contains("garage") && !cmd.contains("light")) {
       _toggle('toggle-garage', {'state': state});
-    }
-    if (cmd.contains("canopy") || cmd.contains("balcony")) {
-      _toggle('toggle-canopy', {'state': state});
     }
     if (cmd.contains("pump") || cmd.contains("water")) {
       _toggle('toggle-pump', {'state': state});

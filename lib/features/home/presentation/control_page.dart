@@ -15,7 +15,8 @@ class ControlPage extends StatefulWidget {
 
 class _ControlPageState extends State<ControlPage> {
   // Local state for immediate UI updates (optimistic updates)
-  late bool _localPump;
+  late bool _localPump;       // MODE: true = Manual, false = Automatic
+  late bool _localPumpRelay;  // RELAY: true = pump physically ON (optimistic)
   late bool _localGarage;
   late Map<String, bool> _localLights;
 
@@ -34,6 +35,7 @@ class _ControlPageState extends State<ControlPage> {
 
   void _syncStateFromWidget() {
     _localPump = widget.data['manualPump'] ?? false;
+    _localPumpRelay = widget.data['pump'] ?? false;
     _localGarage = widget.data['garageOpen'] ?? false;
     _localLights = Map<String, bool>.from(widget.data['lights'] ?? {})
         .cast<String, bool>();
@@ -44,7 +46,12 @@ class _ControlPageState extends State<ControlPage> {
     try {
       // Optimistically update local state first
       if (path == 'toggle-pump') {
-        setState(() => _localPump = body['state'] ?? !_localPump);
+        setState(() {
+          _localPump = body['state'] ?? !_localPump;
+          // Switching to Manual always means relay ON; switching to Auto
+          // leaves the relay state to the server (keep current until next poll).
+          if (_localPump) _localPumpRelay = true;
+        });
       } else if (path == 'toggle-garage') {
         setState(() => _localGarage = body['state'] ?? !_localGarage);
       } else if (path == 'toggle-light' && body is Map) {
@@ -159,10 +166,7 @@ class _ControlPageState extends State<ControlPage> {
               SizedBox(height: h * 0.014),
 
               // --- 1. GARDEN PUMP ---
-              _buildSwitchTile("Garden Water Pump", _localPump,
-                  Icons.water_drop, Colors.blue, (v) {
-                _toggle('toggle-pump', {'state': v});
-              }, true),
+              _buildPumpTile(),
 
               SizedBox(height: h * 0.01),
 
@@ -255,7 +259,137 @@ class _ControlPageState extends State<ControlPage> {
     );
   }
 
-  // --- REUSABLE SWITCH TILE (For Pump, Canopy, Garage) ---
+  // --- PUMP TILE: shows AUTO ↔ MANUAL mode toggle + actual relay state ---
+  Widget _buildPumpTile() {
+    final bool isManual = _localPump;
+    final bool pumpOn = _localPumpRelay;
+    final bool systemDisabled = widget.data['pumpSystemDisabled'] == true;
+    final int soil = (widget.data['soilMoisture'] as num?)?.toInt() ?? 0;
+    final String reason = widget.data['weatherReason']?.toString() ?? '';
+
+    Color accentColor = systemDisabled
+        ? Colors.redAccent
+        : pumpOn
+            ? Colors.blue
+            : Colors.white24;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10141E),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: systemDisabled
+              ? Colors.redAccent.withValues(alpha: 0.25)
+              : pumpOn
+                  ? Colors.blue.withValues(alpha: 0.3)
+                  : Colors.transparent,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title row
+            Row(
+              children: [
+                Icon(Icons.water_drop, size: 20, color: accentColor),
+                const SizedBox(width: 10),
+                const Text('Garden Water Pump',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Spacer(),
+                if (systemDisabled)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('SYSTEM OFF',
+                        style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // AUTO ←→ MANUAL toggle row
+            Row(
+              children: [
+                Text('AUTO',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: (!isManual && !systemDisabled)
+                            ? Colors.teal
+                            : Colors.white24)),
+                const SizedBox(width: 6),
+                Switch(
+                  value: isManual,
+                  activeThumbColor: Colors.blue,
+                  activeTrackColor: Colors.blue.withValues(alpha: 0.35),
+                  inactiveThumbColor: Colors.teal,
+                  inactiveTrackColor: Colors.teal.withValues(alpha: 0.35),
+                  onChanged: systemDisabled
+                      ? null
+                      : (v) {
+                          setState(() => _localPump = v);
+                          _toggle('toggle-pump', {'state': v});
+                        },
+                ),
+                const SizedBox(width: 6),
+                Text('MANUAL',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: (isManual && !systemDisabled)
+                            ? Colors.blue
+                            : Colors.white24)),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            // Status line
+            Row(
+              children: [
+                Icon(Icons.circle,
+                    size: 7,
+                    color: pumpOn ? Colors.blue : Colors.white24),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    systemDisabled
+                        ? 'Enable in Settings → Pump System'
+                        : isManual
+                            ? (pumpOn
+                                ? 'Pump is running (manual)'
+                                : 'Pump is OFF (manual)')
+                            : (pumpOn
+                                ? 'Auto: pump ON · Soil $soil%'
+                                : reason.isNotEmpty
+                                    ? 'Auto: $reason · Soil $soil%'
+                                    : 'Auto: Soil $soil% · waiting for sensors'),
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        color: pumpOn ? Colors.blue : Colors.white38),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- REUSABLE SWITCH TILE (For Pump, Garage) ---
   Widget _buildSwitchTile(String title, bool val, IconData icon, Color color,
       Function(bool) onChanged, bool hasAuto) {
     return Container(

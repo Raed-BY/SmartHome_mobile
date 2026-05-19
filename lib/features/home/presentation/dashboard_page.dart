@@ -19,16 +19,13 @@ class DashboardPage extends StatelessWidget {
     // Data Extraction
     final String name = data['systemInfo']?['userName'] ?? 'test';
     final int gas = data['gasLevel'] ?? 0;
-    final bool smokeDanger = data['smokeDanger'] == true || gas > 3000;
+    final bool smokeDanger = data['smokeDanger'] == true || gas > 1200;
     final String lastVisitor = data['lastVisitor'] ?? 'No one at the door';
 
     // --- WATER PUMP REASON LOGIC ---
     // Show pump as ON if it's actually on (regardless of manual or automatic mode)
     final bool isPumpActive = data['pump'] == true;
-
-    final bool isRaining = data['isRaining'] == true;
-    final String pumpStatusText =
-        "${isPumpActive ? "ON" : "OFF"} - ${isRaining ? "RAIN" : "NO RAIN"}";
+    final String pumpStatusText = isPumpActive ? "ON" : "OFF";
 
     return Scaffold(
       backgroundColor: const Color(0xFF02040A),

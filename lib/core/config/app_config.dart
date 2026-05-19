@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 
 class AppConfig {
   // Primary LAN target for physical devices
-  static const String baseUrlHost = 'http://172.20.10.4:3000/smarthome';
+  static const String smartHomeHost = '172.20.10.4';
+  static const String baseUrlHost = 'http://$smartHomeHost:3000/smarthome';
   static const String webBaseUrl = baseUrlHost;
   static const String mobileBaseUrl = baseUrlHost;
 
@@ -14,7 +15,7 @@ class AppConfig {
         mobileBaseUrl,
         'http://172.20.10.2:3000/smarthome',
         'http://10.0.2.2:3000/smarthome',
-        'http://172.20.10.4:3000/smarthome',
+        'http://$smartHomeHost:3000/smarthome',
       ];
 
   static String get baseUrl => kIsWeb ? webBaseUrl : _activeMobileBaseUrl;
