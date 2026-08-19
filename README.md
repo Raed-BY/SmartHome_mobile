@@ -47,19 +47,22 @@ If you use the Android helper script provided in the repo:
 
 ## Demo video
 
-For GitHub, use one of these approaches:
-
-1. Upload the video to YouTube, Google Drive, or GitHub Releases, then link it in this README.
-2. Put the file in the repo, for example `mobile_app/assets/demo/demo.mp4`, and link it like this:
+The project demo is stored at `assets/demo/demo.mp4`. After committing and pushing that file, use this link:
 
 ```md
-[Watch the demo video](assets/demo/demo.mp4)
+[Watch the SmartHome demo](assets/demo/demo.mp4)
 ```
 
-3. If you add a thumbnail image, make it clickable:
+You can also use a hosted video link, such as YouTube or a GitHub Release asset:
+
+```md
+[Watch the SmartHome demo](https://example.com/your-video)
+```
+
+If you add a thumbnail image, make it clickable:
 
 ```md
 [![SmartHome Demo](assets/demo/thumbnail.png)](assets/demo/demo.mp4)
 ```
 
-For the best GitHub README experience, use a hosted video page or a release asset. Raw MP4 links work, but GitHub usually shows them as links rather than an embedded player.
+GitHub will not show a local file until it is committed and pushed. A relative MP4 link usually opens the video or downloads it; a hosted video page gives the best README experience.
