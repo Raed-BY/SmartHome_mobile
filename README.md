@@ -47,22 +47,8 @@ If you use the Android helper script provided in the repo:
 
 ## Demo video
 
-The project demo is stored at `assets/demo/demo.mp4`. After committing and pushing that file, use this link:
+The project demonstration is available here:
 
-```md
 [Watch the SmartHome demo](assets/demo/demo.mp4)
-```
 
-You can also use a hosted video link, such as YouTube or a GitHub Release asset:
-
-```md
-[Watch the SmartHome demo](https://example.com/your-video)
-```
-
-If you add a thumbnail image, make it clickable:
-
-```md
-[![SmartHome Demo](assets/demo/thumbnail.png)](assets/demo/demo.mp4)
-```
-
-GitHub will not show a local file until it is committed and pushed. A relative MP4 link usually opens the video or downloads it; a hosted video page gives the best README experience.
+The video is stored in `assets/demo/demo.mp4` and tracked with Git LFS. GitHub may display it as a file link instead of an embedded player because it is a large MP4.
